@@ -107,6 +107,53 @@ fi
 echo "$role_arn" > role_arn.txt
 echo "Role ARN saved to role_arn.txt: $role_arn"
 
+# Create a new policy for Terraform operations
+echo "Creating policy for Terraform operations..."
+terraform_policy_document=$(cat <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:*",
+                "ecs:*",
+                "ecr:*",
+                "iam:*",
+                "s3:*",
+                "dynamodb:*",
+                "logs:*",
+                "cloudwatch:*",
+                "elasticloadbalancing:*",
+                "application-autoscaling:*",
+                "ssm:*"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+EOF
+)
+
+# Create or update the Terraform policy
+echo "Creating or updating Terraform policy..."
+if aws iam get-policy --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${POLICY_NAME}_terraform" &>/dev/null; then
+    echo "Terraform policy already exists. Updating..."
+    policy_version=$(aws iam create-policy-version \
+        --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${POLICY_NAME}_terraform" \
+        --policy-document "$terraform_policy_document" \
+        --set-as-default \
+        --query 'PolicyVersion.VersionId' \
+        --output text)
+    echo "Terraform policy updated to version $policy_version"
+else
+    echo "Creating new Terraform policy..."
+    aws iam create-policy \
+        --policy-name "${POLICY_NAME}_terraform" \
+        --policy-document "$terraform_policy_document"
+    echo "Terraform policy created."
+fi
+
 # Attach policy to role
 echo "Attaching policy to role ${ROLE_NAME}..."
 aws iam attach-role-policy \
