@@ -2,6 +2,20 @@
 
 This project sets up a scheduled Docker container task on AWS ECS using Terraform.
 
+## Table of Contents
+- [Prerequisites](#prerequisites)
+- [Setup and Deployment](#setup-and-deployment)
+  - [Additional commands](#additional-commands)
+- [Customization](#customization)
+  - [Modifying Container Permissions](#modifying-container-permissions)
+  - [Modifying Schedule](#modifying-schedule)
+- [Configuring GitHub Actions](#configuring-github-actions)
+  - [Workflow Overview](#workflow-overview)
+  - [Manual Workflow Dispatch](#manual-workflow-dispatch)
+  - [Troubleshooting GitHub Actions](#troubleshooting-github-actions)
+- [Troubleshooting](#troubleshooting)
+- [Support](#support)
+
 ## Prerequisites
 - AWS CLI: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 - Terraform: https://developer.hashicorp.com/terraform/install
