@@ -105,6 +105,7 @@ This project includes a GitHub Actions workflow for building, pushing, and deplo
 3. Go to Secrets and Variables > action. 
 4. Add the following repository secrets:
     - `AWS_REGION`: Your AWS region (e.g., us-east-1)
+    - `AWS_ACCOUNT_ID`: Your AWS Account ID
     - `S3_BUCKET`: The name of your S3 bucket for Terraform state
     - `DYNAMODB_TABLE`: The name of your DynamoDB table for state locking
     - `ECR_REPOSITORY_NAME`: The name of your ECR repository
