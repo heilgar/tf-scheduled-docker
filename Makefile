@@ -45,8 +45,8 @@ help:
 	@echo "  help                 : Show this help message"
 	@echo "  setup                : Run create-policy, create-role, and create-backend"
 	@echo "  init                 : Initialize Terraform"
-	@echo "  plan                 : Plan Terraform changes"
-	@echo "  apply                : Apply Terraform changes"
+	@echo "  plan                 : Plan terraform -chdir=tf changes"
+	@echo "  apply                : Apply terraform -chdir=tf changes"
 	@echo "  destroy              : Destroy Terraform-managed infrastructure"
 	@echo "  destroy-resources    : Destroy IAM role, policy, S3 bucket, and DynamoDB table (with confirmation)"
 	@echo ""
@@ -85,16 +85,16 @@ setup: create-policy create-role create-backend create-ecr push
 
 # Initialize Terraform
 init:
-	terraform init \
+	terraform -chdir=tf init \
 		-backend-config="bucket=$(S3_BUCKET)" \
 		-backend-config="key=terraform.tfstate" \
 		-backend-config="region=$(AWS_REGION)" \
 		-backend-config="dynamodb_table=$(DYNAMODB_TABLE)" \
 		-backend-config="encrypt=true"
 
-# Plan Terraform changes
+# Plan terraform -chdir=tf changes
 plan:
-	terraform plan \
+	terraform -chdir=tf plan \
 		-var="region=$(AWS_REGION)" \
 		-var="aws_account_id=$(AWS_ACCOUNT_ID)" \
 		-var="s3_bucket=$(S3_BUCKET)" \
@@ -105,9 +105,9 @@ plan:
 		-var="container_stop_timeout=$(CONTAINER_STOP_TIMEOUT)" \
 		-var="container_environment=$(call escape_json,$(CONTAINER_ENVIRONMENT))"
 
-# Apply Terraform configuration
+# Apply terraform -chdir=tf configuration
 apply:
-	terraform apply -auto-approve \
+	terraform -chdir=tf apply -auto-approve \
 		-var="region=$(AWS_REGION)" \
 		-var="aws_account_id=$(AWS_ACCOUNT_ID)" \
 		-var="s3_bucket=$(S3_BUCKET)" \
@@ -120,7 +120,7 @@ apply:
 
 # Destroy Terraform-managed infrastructure
 destroy:
-	terraform destroy -auto-approve \
+	terraform -chdir=tf destroy -auto-approve \
 		-var="region=$(AWS_REGION)" \
 		-var="aws_account_id=$(AWS_ACCOUNT_ID)" \
 		-var="s3_bucket=$(S3_BUCKET)" \
