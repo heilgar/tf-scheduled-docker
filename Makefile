@@ -132,7 +132,7 @@ destroy:
 		-var="container_environment=$(call escape_json,$(CONTAINER_ENVIRONMENT))"
 
 # Command to destroy IAM role, policy, and backend resources
-destroy-resources:
+destroy-resources: destroy
 	@echo "This will destroy the IAM role, policy, and backend resources (S3 bucket and DynamoDB table)."
 	@echo "Are you sure you want to proceed? This action cannot be undone."
 	@read -p "Type 'yes' to continue: " confirm && [ "$$confirm" = "yes" ] || exit 1
