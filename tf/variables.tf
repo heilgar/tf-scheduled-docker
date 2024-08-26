@@ -48,3 +48,8 @@ variable "container_environment" {
   description = "The environment variables to pass to the container"
   default     = []
 }
+
+variable "aws_account_id" {
+  description = "The AWS account ID"
+  type        = string
+}

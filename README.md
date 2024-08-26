@@ -111,6 +111,13 @@ This project includes a GitHub Actions workflow for building, pushing, and deplo
     - `ECR_REPOSITORY_NAME`: The name of your ECR repository
     - `ECS_CLUSTER_NAME`: The name of your ECS cluster
     - `CRON_EXPRESSION`: The cron expression for your scheduled task
+    - `CONTAINER_STOP_TIMEOUT`: Time in seconds to wait before force-stopping the container
+    - `CONTAINER_ENVIRONMENT`: JSON array of environment variables for the container
+    - `ROLE_NAME`: The name of the IAM role for GitHub Actions
+    - `OIDC_PROVIDER_URL`: The URL of your OIDC provider
+    - `OIDC_PROVIDER_NAME`: The name of your OIDC provider
+    - `POLICY_NAME`: The name of the IAM policy for GitHub Actions
+    - `AWS_ROLE_ARN`: The ARN of the IAM role for GitHub Actions to assume
     - `AWS_ROLE_ARN`: The ARN of the IAM role for GitHub Actions to assume (`role_arn.txt` should be in the root of your project if you follow steps)
 5. Enable GitHub Action in your repository if not already enabled.
 6. Customize the workflow (optional): 
