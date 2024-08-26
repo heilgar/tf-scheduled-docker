@@ -1,0 +1,4 @@
+role_arn.txt
+.env
+*.tfvars
+.terraform*
