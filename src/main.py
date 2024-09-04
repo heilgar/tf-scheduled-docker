@@ -70,6 +70,46 @@ def upload_to_s3(data, bucket_name, file_name):
     s3 = boto3.client('s3')
     s3.put_object(Bucket=bucket_name, Key=file_name, Body=json.dumps(data))
 
+def write_secret(secret_name, secret_value):
+    """
+    Write a secret to AWS Secrets Manager. If the secret doesn't exist, it will be created.
+    """
+    session = boto3.session.Session()
+    client = session.client(service_name='secretsmanager')
+    
+    try:
+        client.put_secret_value(SecretId=secret_name, SecretString=secret_value)
+        logger.info(f"Secret '{secret_name}' successfully written/updated.")
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ResourceNotFoundException':
+            try:
+                client.create_secret(Name=secret_name, SecretString=secret_value)
+                logger.info(f"Secret '{secret_name}' successfully created.")
+            except ClientError as create_error:
+                logger.error(f"Error creating secret '{secret_name}': {create_error}")
+                raise
+        else:
+            logger.error(f"Error writing secret '{secret_name}': {e}")
+            raise
+
+def read_secret(secret_name):
+    """
+    Read a secret from AWS Secrets Manager.
+    """
+    session = boto3.session.Session()
+    client = session.client(service_name='secretsmanager')
+    
+    try:
+        response = client.get_secret_value(SecretId=secret_name)
+        return response['SecretString']
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ResourceNotFoundException':
+            logger.info(f"Secret '{secret_name}' not found.")
+            return None
+        else:
+            logger.error(f"Error reading secret '{secret_name}': {e}")
+            raise
+
 def main():
     # Ensure the log group exists
     ensure_log_group_exists(LOG_GROUP_NAME)
@@ -79,6 +119,18 @@ def main():
 
     execution_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     logger.info(f"Executed [{execution_time}]")
+
+    # Example usage of write_secret and read_secret
+    secret_name = "example_secret"
+    secret_value = "This is a test secret"
+    
+    write_secret(secret_name, secret_value)
+    retrieved_secret = read_secret(secret_name)
+    
+    if retrieved_secret:
+        logger.info(f"Retrieved secret: {retrieved_secret}")
+    else:
+        logger.info("Secret not found")
 
     cat_fact = get_cat_fact()
     if cat_fact:
@@ -100,3 +152,4 @@ if __name__ == "__main__":
     main()
     time.sleep(120)
     exit(0)
+    

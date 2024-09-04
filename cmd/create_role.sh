@@ -36,22 +36,20 @@ fetch_thumbprint() {
     return 1
 }
 
-# Fetch the thumbprint
-echo "Fetching current thumbprint for GitHub OIDC provider..."
-if ! THUMBPRINT=$(fetch_thumbprint); then
-    echo "Error: Unable to fetch thumbprint. Exiting."
-    exit 1
-fi
-echo "Fetched thumbprint: $THUMBPRINT"
-
-# Create or update OIDC Provider
+# Check OIDC Provider
 echo "Checking OIDC Provider..."
 if aws iam get-open-id-connect-provider --open-id-connect-provider-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com" &>/dev/null; then
-    echo "OIDC Provider already exists. Updating thumbprint..."
-    aws iam update-open-id-connect-provider-thumbprint \
-        --open-id-connect-provider-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com" \
-        --thumbprint-list "$THUMBPRINT"
+    echo "OIDC Provider already exists. Skipping creation."
 else
+    echo "OIDC Provider does not exist. Creating..."
+    # Fetch the thumbprint
+    echo "Fetching current thumbprint for GitHub OIDC provider..."
+    if ! THUMBPRINT=$(fetch_thumbprint); then
+        echo "Error: Unable to fetch thumbprint. Exiting."
+        exit 1
+    fi
+    echo "Fetched thumbprint: $THUMBPRINT"
+
     echo "Creating OIDC Provider..."
     aws iam create-open-id-connect-provider \
         --url https://token.actions.githubusercontent.com \
