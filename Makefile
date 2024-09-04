@@ -85,7 +85,7 @@ setup: create-policy create-role create-backend create-ecr push
 
 # Initialize Terraform
 init:
-	terraform -chdir=tf init \
+	terraform -chdir=tf init -reconfigure \
 		-backend-config="bucket=$(S3_BUCKET)" \
 		-backend-config="key=terraform.tfstate" \
 		-backend-config="region=$(AWS_REGION)" \

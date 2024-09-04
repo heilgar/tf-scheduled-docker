@@ -92,7 +92,14 @@ resource "aws_iam_policy" "ecs_task_policy" {
           "logs:PutLogEvents",
           "logs:CreateLogStream",
           "logs:DescribeLogGroups",
-          "logs:CreateLogGroup"
+          "logs:CreateLogGroup",
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:ListSecrets",
+          "secretsmanager:CreateSecret",
+          "secretsmanager:PutSecretValue",
+          "secretsmanager:UpdateSecret",
+          "secretsmanager:PutSecretValue"
         ],
         Effect   = "Allow",
         Resource = "*"
