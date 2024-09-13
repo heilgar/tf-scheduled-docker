@@ -1,15 +1,15 @@
 resource "aws_ecs_cluster" "scheduled_cluster" {
-  name = var.ecs_cluster_name
+  name = "${var.ecs_cluster_name}${local.region_suffix}"
 }
 
 # Create CloudWatch log group
 resource "aws_cloudwatch_log_group" "ecs_logs" {
-  name              = "/ecs/tf-command"
-  retention_in_days = 30  # Adjust this value as needed
+  name              = "/ecs/tf-command${local.region_suffix}"
+  retention_in_days = 30 # Adjust this value as needed
 }
 
 resource "aws_ecs_task_definition" "command" {
-  family                   = "command"
+  family                   = "command${local.region_suffix}"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = 256
@@ -40,3 +40,4 @@ resource "aws_ecs_task_definition" "command" {
     cpu_architecture        = "X86_64"
   }
 }
+

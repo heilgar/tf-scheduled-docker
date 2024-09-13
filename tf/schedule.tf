@@ -1,22 +1,6 @@
-# Get default VPC
-data "aws_vpc" "default" {
-  default = true
-}
-
-# Get public subnets from default VPC
-data "aws_subnets" "public" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
-  filter {
-    name   = "map-public-ip-on-launch"
-    values = ["true"]
-  }
-}
 
 resource "aws_cloudwatch_event_rule" "schedule_rule" {
-  name                = "run-container-schedule"
+  name                = "run-container-schedule${local.region_suffix}"
   description         = "Run Docker container every 5 minutes"
   schedule_expression = var.cron_expression
 }
@@ -32,16 +16,17 @@ resource "aws_cloudwatch_event_target" "run_task_target" {
     task_definition_arn = aws_ecs_task_definition.command.arn
     launch_type         = "FARGATE"
     network_configuration {
-      subnets          = data.aws_subnets.public.ids
+      subnets          = [aws_subnet.ecs_public_subnet.id]
       assign_public_ip = true
       security_groups  = [aws_security_group.ecs_tasks.id]
     }
-    # Add this to ensure the task isn't kept alive after completion
     enable_execute_command = false
   }
 }
+
+
 resource "aws_iam_role" "ecs_events_role" {
-  name = "ecs_events_role"
+  name = "ecs_events_role${local.region_suffix}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -62,11 +47,11 @@ resource "aws_iam_role_policy_attachment" "ecs_events_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceEventsRole"
 }
 
-# Create a security group for ECS tasks
+# Update the security group to use the new VPC
 resource "aws_security_group" "ecs_tasks" {
-  name        = "ecs-tasks-sg"
+  name        = "ecs-tasks-sg${local.region_suffix}"
   description = "Security group for ECS tasks"
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = aws_vpc.ecs_vpc.id
 
   egress {
     from_port   = 0
@@ -74,4 +59,9 @@ resource "aws_security_group" "ecs_tasks" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  tags = {
+    Name = "ecs-tasks-sg"
+  }
 }
+

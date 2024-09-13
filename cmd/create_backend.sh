@@ -15,21 +15,39 @@ for var in "${required_vars[@]}"; do
     fi
 done
 
-echo "Checking if S3 bucket ${S3_BUCKET} exists..."
-if ! aws s3 ls "s3://${S3_BUCKET}" > /dev/null 2>&1; then
-    echo "S3 bucket does not exist. Creating..."
-    aws s3api create-bucket --bucket "${S3_BUCKET}" --region "${AWS_REGION}" --create-bucket-configuration LocationConstraint="${AWS_REGION}"
-else
-    echo "S3 bucket exists."
-fi
+# Function to create S3 bucket if it doesn't exist
+create_s3_bucket() {
+    if aws s3api head-bucket --bucket "$1" 2>/dev/null; then
+        echo "S3 bucket $1 already exists."
+    else
+        echo "Creating S3 bucket $1..."
+        aws s3api create-bucket --bucket "$1" --region "$AWS_REGION" \
+            --create-bucket-configuration LocationConstraint="$AWS_REGION"
+        echo "S3 bucket $1 created successfully."
+    fi
+}
 
-echo "Checking if DynamoDB table ${DYNAMODB_TABLE} exists..."
-if ! aws dynamodb describe-table --table-name "${DYNAMODB_TABLE}" > /dev/null 2>&1; then
-    echo "DynamoDB table does not exist. Creating..."
-    aws dynamodb create-table --table-name "${DYNAMODB_TABLE}" \
-        --attribute-definitions AttributeName=LockID,AttributeType=S \
-        --key-schema AttributeName=LockID,KeyType=HASH \
-        --billing-mode PAY_PER_REQUEST
-else
-    echo "DynamoDB table exists."
-fi
+# Function to create DynamoDB table if it doesn't exist
+create_dynamodb_table() {
+    if aws dynamodb describe-table --table-name "$1" &>/dev/null; then
+        echo "DynamoDB table $1 already exists."
+    else
+        echo "Creating DynamoDB table $1..."
+        aws dynamodb create-table \
+            --table-name "$1" \
+            --attribute-definitions AttributeName=LockID,AttributeType=S \
+            --key-schema AttributeName=LockID,KeyType=HASH \
+            --billing-mode PAY_PER_REQUEST \
+            --region "$AWS_REGION"
+        echo "DynamoDB table $1 created successfully."
+    fi
+}
+
+# Create or check S3 bucket
+create_s3_bucket "$S3_BUCKET"
+
+# Create or check DynamoDB table
+create_dynamodb_table "$DYNAMODB_TABLE"
+
+echo "Backend setup complete."
+
