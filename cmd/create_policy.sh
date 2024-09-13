@@ -15,10 +15,32 @@ for var in "${required_vars[@]}"; do
     fi
 done
 
-echo "Creating IAM policy ${POLICY_NAME}..."
-aws iam create-policy \
-    --policy-name "${POLICY_NAME}" \
-    --policy-document '{
+# Function to create or update policy
+create_or_update_policy() {
+    local policy_name="$1"
+    local policy_document="$2"
+    local policy_arn="arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${policy_name}"
+
+    if aws iam get-policy --policy-arn "$policy_arn" &>/dev/null; then
+        echo "Policy ${policy_name} exists. Updating..."
+        policy_version=$(aws iam create-policy-version \
+            --policy-arn "$policy_arn" \
+            --policy-document "$policy_document" \
+            --set-as-default \
+            --query 'PolicyVersion.VersionId' \
+            --output text)
+        echo "Policy ${policy_name} updated to version $policy_version"
+    else
+        echo "Creating new policy ${policy_name}..."
+        aws iam create-policy \
+            --policy-name "${policy_name}" \
+            --policy-document "$policy_document"
+        echo "Policy ${policy_name} created."
+    fi
+}
+
+echo "Creating or updating IAM policy ${POLICY_NAME}..."
+policy_document='{
     "Version": "2012-10-17",
     "Statement": [
         {
@@ -70,4 +92,8 @@ aws iam create-policy \
         }
     ]
 }'
-echo "Policy ${POLICY_NAME} created."
+
+create_or_update_policy "${POLICY_NAME}" "$policy_document"
+
+echo "Policy setup complete."
+

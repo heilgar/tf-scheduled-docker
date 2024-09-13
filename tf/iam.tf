@@ -1,6 +1,6 @@
 # Task Execution Role
 resource "aws_iam_role" "task_execution_role" {
-  name = "task_execution_role"
+  name = "task_execution_role${local.region_suffix}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -20,9 +20,9 @@ resource "aws_iam_role" "task_execution_role" {
 # Custom policy for Task Execution Role
 # Actions to run container
 resource "aws_iam_policy" "ecs_task_execution_policy" {
-  name        = "CustomECSTaskExecutionPolicy"
+  name        = "CustomECSTaskExecutionPolicy${local.region_suffix}"
   description = "Custom policy for ECS task execution role"
-  policy      = jsonencode({
+  policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
@@ -36,7 +36,8 @@ resource "aws_iam_policy" "ecs_task_execution_policy" {
           "logs:CreateLogStream",
           "logs:PutLogEvents",
           "s3:PutObject",
-          "s3:GetObject"
+          "s3:GetObject",
+          "s3:HeadBucket"
         ],
         Effect   = "Allow",
         Resource = "*"
@@ -59,7 +60,7 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_logs_policy_attachment" {
 
 # Task Role
 resource "aws_iam_role" "task_role" {
-  name = "ecs_task_role"
+  name = "ecs_task_role${local.region_suffix}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -78,9 +79,9 @@ resource "aws_iam_role" "task_role" {
 # Custom policy for Task Role
 # Actions allowed inside container
 resource "aws_iam_policy" "ecs_task_policy" {
-  name        = "CustomECSTaskPolicy"
+  name        = "CustomECSTaskPolicy${local.region_suffix}"
   description = "Custom policy for ECS task role"
-  policy      = jsonencode({
+  policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
@@ -89,6 +90,7 @@ resource "aws_iam_policy" "ecs_task_policy" {
           "s3:GetObject",
           "s3:ListBucket",
           "s3:CreateBucket",
+          "s3:HeadBucket",
           "logs:PutLogEvents",
           "logs:CreateLogStream",
           "logs:DescribeLogGroups",
@@ -113,3 +115,4 @@ resource "aws_iam_role_policy_attachment" "task_role_policy_attachment" {
   role       = aws_iam_role.task_role.name
   policy_arn = aws_iam_policy.ecs_task_policy.arn
 }
+

@@ -36,21 +36,19 @@ fetch_thumbprint() {
     return 1
 }
 
-# Check OIDC Provider
+# Check and update OIDC Provider
 echo "Checking OIDC Provider..."
-if aws iam get-open-id-connect-provider --open-id-connect-provider-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com" &>/dev/null; then
-    echo "OIDC Provider already exists. Skipping creation."
+OIDC_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
+if aws iam get-open-id-connect-provider --open-id-connect-provider-arn "$OIDC_ARN" &>/dev/null; then
+    echo "OIDC Provider exists. Updating thumbprint..."
+    THUMBPRINT=$(fetch_thumbprint)
+    aws iam update-open-id-connect-provider-thumbprint \
+        --open-id-connect-provider-arn "$OIDC_ARN" \
+        --thumbprint-list "$THUMBPRINT"
+    echo "OIDC Provider thumbprint updated."
 else
     echo "OIDC Provider does not exist. Creating..."
-    # Fetch the thumbprint
-    echo "Fetching current thumbprint for GitHub OIDC provider..."
-    if ! THUMBPRINT=$(fetch_thumbprint); then
-        echo "Error: Unable to fetch thumbprint. Exiting."
-        exit 1
-    fi
-    echo "Fetched thumbprint: $THUMBPRINT"
-
-    echo "Creating OIDC Provider..."
+    THUMBPRINT=$(fetch_thumbprint)
     aws iam create-open-id-connect-provider \
         --url https://token.actions.githubusercontent.com \
         --client-id-list sts.amazonaws.com \
@@ -67,7 +65,7 @@ policy_document=$(cat <<EOF
         {
             "Effect": "Allow",
             "Principal": {
-                "Federated": "arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
+                "Federated": "${OIDC_ARN}"
             },
             "Action": "sts:AssumeRoleWithWebIdentity",
             "Condition": {
@@ -87,7 +85,7 @@ EOF
 # Create or update IAM role
 echo "Checking IAM role ${ROLE_NAME}..."
 if aws iam get-role --role-name "${ROLE_NAME}" &>/dev/null; then
-    echo "Role ${ROLE_NAME} already exists. Updating assume role policy..."
+    echo "Role ${ROLE_NAME} exists. Updating assume role policy..."
     aws iam update-assume-role-policy \
         --role-name "${ROLE_NAME}" \
         --policy-document "$policy_document"
@@ -99,14 +97,75 @@ else
         --assume-role-policy-document "$policy_document" \
         --query 'Role.Arn' \
         --output text)
-    echo "IAM role created."
 fi
 
 echo "$role_arn" > role_arn.txt
 echo "Role ARN saved to role_arn.txt: $role_arn"
 
-# Create a new policy for Terraform operations
-echo "Creating policy for Terraform operations..."
+# Function to create or update policy
+create_or_update_policy() {
+    local policy_name="$1"
+    local policy_document="$2"
+    local policy_arn="arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${policy_name}"
+
+    if aws iam get-policy --policy-arn "$policy_arn" &>/dev/null; then
+        echo "Policy ${policy_name} exists. Updating..."
+        policy_version=$(aws iam create-policy-version \
+            --policy-arn "$policy_arn" \
+            --policy-document "$policy_document" \
+            --set-as-default \
+            --query 'PolicyVersion.VersionId' \
+            --output text)
+        echo "Policy ${policy_name} updated to version $policy_version"
+    else
+        echo "Creating new policy ${policy_name}..."
+        aws iam create-policy \
+            --policy-name "${policy_name}" \
+            --policy-document "$policy_document"
+        echo "Policy ${policy_name} created."
+    fi
+}
+
+# Create or update main policy
+main_policy_document=$(cat <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:ListBucket",
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:Scan",
+                "dynamodb:Query",
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:GetRepositoryPolicy",
+                "ecr:DescribeRepositories",
+                "ecr:ListImages",
+                "ecr:DescribeImages",
+                "ecr:BatchGetImage",
+                "ecr:InitiateLayerUpload",
+                "ecr:UploadLayerPart",
+                "ecr:CompleteLayerUpload",
+                "ecr:PutImage"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+EOF
+)
+
+create_or_update_policy "${POLICY_NAME}" "$main_policy_document"
+
+# Create or update Terraform policy
 terraform_policy_document=$(cat <<EOF
 {
     "Version": "2012-10-17",
@@ -114,12 +173,6 @@ terraform_policy_document=$(cat <<EOF
         {
             "Effect": "Allow",
             "Action": [
-                "ecs:DescribeClusters",
-                "logs:DescribeLogGroups",
-                "iam:GetRole",
-                "iam:GetPolicy",
-                "ec2:DescribeVpcs",
-                "events:DescribeRule",
                 "ecs:*",
                 "logs:*",
                 "iam:*",
@@ -139,30 +192,17 @@ terraform_policy_document=$(cat <<EOF
 EOF
 )
 
-# Create or update the Terraform policy
-echo "Creating or updating Terraform policy..."
-if aws iam get-policy --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${POLICY_NAME}_terraform" &>/dev/null; then
-    echo "Terraform policy already exists. Updating..."
-    policy_version=$(aws iam create-policy-version \
-        --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${POLICY_NAME}_terraform" \
-        --policy-document "$terraform_policy_document" \
-        --set-as-default \
-        --query 'PolicyVersion.VersionId' \
-        --output text)
-    echo "Terraform policy updated to version $policy_version"
-else
-    echo "Creating new Terraform policy..."
-    aws iam create-policy \
-        --policy-name "${POLICY_NAME}_terraform" \
-        --policy-document "$terraform_policy_document"
-    echo "Terraform policy created."
-fi
+create_or_update_policy "${POLICY_NAME}_terraform" "$terraform_policy_document"
 
-# Attach policy to role
-echo "Attaching policy to role ${ROLE_NAME}..."
+# Attach policies to role
+echo "Attaching policies to role ${ROLE_NAME}..."
 aws iam attach-role-policy \
     --role-name "${ROLE_NAME}" \
     --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${POLICY_NAME}"
-echo "Policy ${POLICY_NAME} attached to role ${ROLE_NAME}."
+aws iam attach-role-policy \
+    --role-name "${ROLE_NAME}" \
+    --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${POLICY_NAME}_terraform"
+echo "Policies attached to role ${ROLE_NAME}."
 
 echo "Setup complete."
+
